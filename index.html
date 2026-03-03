@@ -419,7 +419,7 @@
         <div class="loading-box" id="loading2">
             <div class="spinner"></div>
             <div class="loading-text">正在辨識規格...</div>
-            <div class="progress-label" id="loadingLabel2"></div>
+            <div class="progress-label" id="loadingLabel2">首次使用需下載中文語言包，請稍候</div>
         </div>
 
         <div class="data-box" id="data2">
@@ -571,16 +571,23 @@
         try {
             const processed = await preprocessImage(imgData);
 
-            const result = await Tesseract.recognize(processed, 'eng', {
+            // 照片 A（編號標籤）只需英數，照片 B（規格標籤）需要中文
+            const lang = (photoKey === 'photo1') ? 'eng' : 'eng+chi_tra';
+            const ocrOptions = {
                 logger: function(m) {
                     if (m.status === 'recognizing text') {
                         const pct = Math.round(m.progress * 100);
                         document.getElementById('loadingLabel' + step).textContent = pct + '%';
                     }
                 },
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 :/-.',
                 preserve_interword_spaces: '1'
-            });
+            };
+            // 照片 A 加白名單加速辨識
+            if (photoKey === 'photo1') {
+                ocrOptions.tessedit_char_whitelist = '0123456789';
+            }
+
+            const result = await Tesseract.recognize(processed, lang, ocrOptions);
 
             const rawText = result.data.text;
             console.log('[OCR Step' + step + '] 原始文字：', rawText);
@@ -636,8 +643,8 @@
     function parseSpecLabel(text) {
         let allOk = true;
 
-        // 品名：iPhone 開頭，到換行或 SN/IMEI 為止
-        const modelMatch = text.match(/iPhone[\s\S]{1,80}?(?=\n|SN\s*:|IMEI\s*:|$)/i);
+        // 品名：iPhone 開頭，包含中英文數字空格，到換行或 SN/IMEI 為止
+        const modelMatch = text.match(/iPhone[^\n]{1,60}?(?=\n|SN\s*[:\uff1a]|IMEI\s*[:\uff1a]|$)/i);
         if (modelMatch) {
             const model = modelMatch[0].replace(/\s+/g, ' ').trim();
             document.getElementById('field_model').value = model;
