@@ -115,18 +115,24 @@
             pointer-events: none;
         }
 
+        /* 暗角遮罩（讓框外變暗） */
+        .vf-mask-top    { position: absolute; top: 0; left: 0; right: 0; height: 28%; background: rgba(0,0,0,0.5); }
+        .vf-mask-bottom { position: absolute; bottom: 0; left: 0; right: 0; height: 28%; background: rgba(0,0,0,0.5); }
+        .vf-mask-left   { position: absolute; top: 28%; bottom: 28%; left: 0; width: 8%; background: rgba(0,0,0,0.5); }
+        .vf-mask-right  { position: absolute; top: 28%; bottom: 28%; right: 0; width: 8%; background: rgba(0,0,0,0.5); }
+
         /* 取景框角落 */
         .vf-corner {
             position: absolute;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             border-color: #fff;
             border-style: solid;
         }
-        .vf-corner.tl { top: 15%; left: 8%; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-        .vf-corner.tr { top: 15%; right: 8%; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-        .vf-corner.bl { bottom: 15%; left: 8%; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-        .vf-corner.br { bottom: 15%; right: 8%; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+        .vf-corner.tl { top: 28%; left: 8%; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+        .vf-corner.tr { top: 28%; right: 8%; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+        .vf-corner.bl { bottom: 28%; left: 8%; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+        .vf-corner.br { bottom: 28%; right: 8%; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
 
         /* 掃描線動畫 */
         .scan-line {
@@ -134,15 +140,15 @@
             left: 8%;
             right: 8%;
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(91,108,248,0.8), transparent);
+            background: linear-gradient(90deg, transparent, rgba(91,108,248,0.9), transparent);
             animation: scanMove 2s ease-in-out infinite;
-            top: 15%;
+            top: 28%;
         }
         @keyframes scanMove {
-            0%   { top: 15%; opacity: 0; }
+            0%   { top: 28%; opacity: 0; }
             10%  { opacity: 1; }
             90%  { opacity: 1; }
-            100% { top: 85%; opacity: 0; }
+            100% { top: 72%; opacity: 0; }
         }
 
         .camera-label {
@@ -223,6 +229,11 @@
     <div class="camera-overlay" id="cameraOverlay">
         <div class="camera-video-wrap">
             <video id="cameraVideo" autoplay playsinline muted></video>
+            <!-- 暗角遮罩 -->
+            <div class="vf-mask-top"></div>
+            <div class="vf-mask-bottom"></div>
+            <div class="vf-mask-left"></div>
+            <div class="vf-mask-right"></div>
             <!-- 取景框角落 -->
             <div class="vf-corner tl"></div>
             <div class="vf-corner tr"></div>
@@ -425,10 +436,19 @@
     function takeShot() {
         const video = document.getElementById('cameraVideo');
         const canvas = document.getElementById('shotCanvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+
+        // 裁切取景框內區域：寬度 84%（左右各 8%），高度 44%（上下各 28%）
+        const sx = Math.round(vw * 0.08);
+        const sy = Math.round(vh * 0.28);
+        const sw = Math.round(vw * 0.84);
+        const sh = Math.round(vh * 0.44);
+
+        canvas.width = sw;
+        canvas.height = sh;
+        canvas.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
         closeCamera();
         processImage(imgData);
     }
