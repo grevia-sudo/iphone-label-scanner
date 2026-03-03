@@ -640,13 +640,58 @@
     }
 
     // 解析規格標籤（照片 B）
+    // 清理 OCR 雜訊字元
+    function cleanOCRText(str) {
+        return str
+            // 移除常見 OCR 誤識符號：線段、特殊符號、全形符號
+            .replace(/[—–―─━﹏﹎﹍＿—―━─~`|\\^<>{}\[\]]/g, ' ')
+            // 移除常見誤識字元（線段、小数點外的橫線、等號群）
+            .replace(/[=_…·•●○■□’‘“”]/g, ' ')
+            // 合併多個空白
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
     function parseSpecLabel(text) {
         let allOk = true;
+        console.log('[parseSpecLabel] 全文：', text);
 
-        // 品名：iPhone 開頭，包含中英文數字空格，到換行或 SN/IMEI 為止
-        const modelMatch = text.match(/iPhone[^\n]{1,60}?(?=\n|SN\s*[:\uff1a]|IMEI\s*[:\uff1a]|$)/i);
-        if (modelMatch) {
-            const model = modelMatch[0].replace(/\s+/g, ' ').trim();
+        // 品名提取策略：多層備用
+        let model = '';
+
+        // 策略 1：找到 iPhone 開頭的行，從該行提取到容量/顏色
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (/iPhone/i.test(line)) {
+                // 將該行和下一行合併（有時型號跳行）
+                let combined = line;
+                if (i + 1 < lines.length && !/SN|IMEI/i.test(lines[i+1])) {
+                    combined += ' ' + lines[i+1];
+                }
+                // 提取 iPhone 型號（包含容量和顏色）
+                const m = combined.match(/iPhone\s*\d+[\w\s\u4e00-\u9fff]*?(?:\d+\s*G\s*[\u4e00-\u9fff\w]*|\d+\s*GB\s*[\u4e00-\u9fff\w]*|\d+\s*TB\s*[\u4e00-\u9fff\w]*)/i);
+                if (m) {
+                    model = cleanOCRText(m[0]);
+                    break;
+                }
+                // 備用：直接取該行清理後的內容
+                const cleaned = cleanOCRText(combined);
+                const fallback = cleaned.match(/iPhone[^\n]{2,50}/i);
+                if (fallback) {
+                    model = fallback[0].trim();
+                    break;
+                }
+            }
+        }
+
+        // 策略 2：如果上面沒有找到，用寬鬆 regex
+        if (!model) {
+            const m2 = text.match(/iPhone[^\n]{1,60}/i);
+            if (m2) model = cleanOCRText(m2[0]);
+        }
+
+        if (model) {
             document.getElementById('field_model').value = model;
         } else {
             document.getElementById('field_model').value = '';
